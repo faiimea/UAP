@@ -1,0 +1,8 @@
+checkpoint/
+data/
+models/
+pytorch-cifar/
+run/
+result/
+*.out
+*.npy
