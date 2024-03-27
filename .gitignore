@@ -2,7 +2,7 @@ checkpoint/
 data/
 models/
 pytorch-cifar/
-run/
+runs/
 result/
 *.out
 *.npy
