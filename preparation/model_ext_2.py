@@ -36,7 +36,7 @@ def setup_seed(seed):
 setup_seed(20)
 
 
-def label_dataset_softlabel(net, sub_trainloader, initial_label = False, nb_class = 10,device = torch.device("cuda:0") ):
+def label_dataset_softlabel(net, sub_trainloader, initial_label = False, nb_class = 2,device = torch.device("cuda:0") ):
     softmax = nn.Softmax()
     shape = sub_trainloader.dataset[0][0].shape
     sub_trainimg = torch.zeros(len(sub_trainloader.dataset),shape[0],shape[1],shape[2])
@@ -140,7 +140,7 @@ def eval_training(net, test_loader, test_loss_function=nn.CrossEntropyLoss(), de
 
 
 def train_substitute_softlabel_onepatch(oracle_model, extraction_model, train_loader, MAX_ROUND = 3, 
-                                        n_class = 10,device =  torch.device("cuda:0"), save_path = "",
+                                        n_class = 2,device =  torch.device("cuda:0"), save_path = "",
                                         warm_start = 1):
     #initiate
     dataset = train_loader.dataset
@@ -148,7 +148,8 @@ def train_substitute_softlabel_onepatch(oracle_model, extraction_model, train_lo
     input_shape = list(dataset[0][0].shape)
     model = extraction_model.to(device)
     
-     #Load test dataset
+    #Load test dataset
+    # TODO
     test_dataloader = get_test_dataloader_cifar10(
             0,
             1,
@@ -156,12 +157,15 @@ def train_substitute_softlabel_onepatch(oracle_model, extraction_model, train_lo
             batch_size=128,
             shuffle=False
         )
+    
+
     test_dummy_img, test_dummy_label = label_dataset_onelabel(oracle_model, test_dataloader,True)
     test_dummy_dataset = torch.utils.data.TensorDataset(test_dummy_img,test_dummy_label)
     test_dummy_dataloader = torch.utils.data.DataLoader(test_dummy_dataset, batch_size=128, shuffle=True)
     
     print('len == ?')
     print(len(dataset))
+
     #Extraction start
     for round in range(MAX_ROUND):
         print("===round:",round,"start===") 
@@ -190,6 +194,11 @@ def train_substitute_softlabel_onepatch(oracle_model, extraction_model, train_lo
                 dummy_batch_img, dummy_batch_label = label_dataset_softlabel(oracle_model, batch_dataloader,True)
                 dummy_batch_dataset = torch.utils.data.TensorDataset(dummy_batch_img,dummy_batch_label)
                 dummy_batch_dataloader = torch.utils.data.DataLoader(dummy_batch_dataset, batch_size=128, shuffle=True)
+
+
+                # TODO change train_cifar10
+
+
                 train_cifar10.main(model, "extr_normal_" + str(round) + "_" + str(batch_index), 3, 
                                         lr = 0.001, newloader = dummy_batch_dataloader, b = 128, save_path = save_path, 
                                         normalize = True, device = device, epoch = 15, test_dataloader = test_dummy_dataloader,

@@ -1,10 +1,3 @@
-# train.py
-#!/usr/bin/env	python3
-
-""" train network using pytorch
-author baiyu
-"""
-
 import os
 import sys
 import argparse
@@ -24,8 +17,6 @@ from torch.utils.tensorboard import SummaryWriter
 from utils import get_training_dataloader_cifar10, get_subtraining_dataloader_cifar10, get_test_dataloader_cifar10, WarmUpLR, \
     most_recent_folder, most_recent_weights, last_epoch, best_acc_weights
 from model_structure import get_model
-
-
 
 
 def main(net, name, subset, gpu = True, b = 128, warm = 1, lr = 0.1, resume = False,

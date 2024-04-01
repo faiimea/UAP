@@ -70,7 +70,7 @@ def concanate_fingerprint(net, data_sets, pert, label, b_z = 32, nb_class = 10):
                 #print(features.shape)
                 # print(start*20, end*20)
                 
-                features[cnt,start*20:end*20] = o
+                features[cnt,start*2*nb_class:end*2*nb_class] = o
                 
                 #print(features)
         cnt+=1

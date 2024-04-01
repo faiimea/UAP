@@ -1,5 +1,5 @@
 import models
-def get_model(netname, gpu, num_classes=100):
+def get_model(netname, gpu, num_classes=10):
     """ return given network
     """
     if netname == 'vgg16':

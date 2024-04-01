@@ -1,8 +1,9 @@
+__pycache__/
 checkpoint/
 data/
-models/
 pytorch-cifar/
 runs/
 result/
+log/
 *.out
 *.npy

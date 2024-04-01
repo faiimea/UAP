@@ -15,9 +15,9 @@ import pickle
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 from utils import SubTrainDataset,compute_mean_std
-import model_structure as ms
+import uap.train.model_structure as ms
 
-from train_cifar10 import *
+from uap.train.train_cifar10 import *
 from art.attacks.evasion import FastGradientMethod, UniversalPerturbation
 from art.estimators.classification import PyTorchClassifier
 from art.utils import load_mnist

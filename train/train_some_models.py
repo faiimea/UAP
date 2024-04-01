@@ -18,7 +18,7 @@ from torch.utils.data import Dataset
 from torch.utils.data import DataLoader 
 from utils import * 
 import model_structure as ms
-import train_cifar10  
+import uap.train.train_cifar10 as train_cifar10  
 
 data_dir = os.path.join("./data", 'CIFAR10')
 transform_test = transforms.Compose([

@@ -12,7 +12,7 @@ import pickle
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 import os
-from model_structure import get_model
+from uap.train.model_structure import get_model
 from encoder import classifier
 from encoder_training import train, evaluate
 from utils import *
