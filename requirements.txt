@@ -1,0 +1,11 @@
+adversarial_robustness_toolbox==1.17.1
+art==6.1
+matplotlib==3.7.5
+numpy==1.24.3
+Pillow==10.1.0
+Pillow==10.2.0
+scikit_learn==1.3.2
+scikit_learn==1.3.0
+torch==2.2.0
+torchvision==0.16.0
+tqdm==4.66.1
