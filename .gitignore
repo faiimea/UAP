@@ -1,9 +1,17 @@
-__pycache__/
-checkpoint/
+# datasets and generated artifacts
 data/
-pytorch-cifar/
-runs/
 result/
-log/
-*.out
-*.npy
+runs/
+__pycache__/
+*.pyc
+
+# trained models and run outputs
+demo/checkpoint/
+demo/run_resnet18_demo/
+demo/*.log
+demo/step5_final.status
+nohup.out
+
+# Local paper intake environment and reports
+.venv-intake/
+intake-results/

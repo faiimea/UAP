@@ -18,7 +18,7 @@ class Contrastiveloss(nn.Module):
         super().__init__()
     
     def similarity(self, x1 , x2):
-        return (x1.T @ x2) / (torch.norm(x1,2) * torch.norm(x2,2))
+        return (x1.T @ x2) / (torch.norm(x1,2) * torch.norm(x2,2) + 1e-8)
     
     # Change loss here!
     def single_image_loss(self, x1, y1, x, y,fp_v):
@@ -69,6 +69,10 @@ def train(net,trainloader,testloader,n_epochs,optimizer, fp_v, tau=0.2, device =
             # fp_indep = net.feature(inputs[idx_indep,:])
             # for cnt in range(fp_indep.shape[0]):
         fp_v = tuple(item.to(device) for item in fp_v)
+        # keep the epoch with the best homologous-vs-independent separation on
+        # the validation set (training is unstable and can collapse late)
+        best_gap = None
+        best_state = None
         for epoch in range(n_epochs):
                 print(epoch)
                 running_loss = 0.0
@@ -81,16 +85,24 @@ def train(net,trainloader,testloader,n_epochs,optimizer, fp_v, tau=0.2, device =
                         # forward + backward + optimize
                         outputs = net(inputs)
                         contras = Contrastiveloss(tau)
-                        
-                        loss = contras(net.feature(inputs),labels,net.feature(fp_v[0]))            
+
+                        loss = contras(net.feature(inputs),labels,net.feature(fp_v[0]))
                         print("loss:",loss)
                         loss.backward()
                         optimizer.step()
-                evaluate(net, fp_v, testloader, device)
+                sims = evaluate(net, fp_v, testloader, device)
+                if sims is not None:
+                        gap = sims[0] - sims[1]
+                        if best_gap is None or gap > best_gap:
+                                best_gap = gap
+                                best_state = copy.deepcopy(net.state_dict())
+        if best_state is not None:
+                net.load_state_dict(best_state)
+                print('restored best epoch (homo-indep gap {:.4f})'.format(best_gap))
         print('Finished Training')
 
         # 指定保存模型的路径
-        model_save_path = '/home/fazhong/studio/uap/result/model.pth'
+        model_save_path = './result/model.pth'
         torch.save(net.state_dict(), model_save_path)
 
 
@@ -98,7 +110,7 @@ def train(net,trainloader,testloader,n_epochs,optimizer, fp_v, tau=0.2, device =
 
     
 def similarity(x1 , x2):
-    return (x1 @ x2.T) / (torch.norm(x1,2) * torch.norm(x2,2))
+    return (x1 @ x2.T) / (torch.norm(x1,2) * torch.norm(x2,2) + 1e-8)
 
 def evaluate(net, fp_v, test_loader, device = "cuda:0"):
     """
@@ -143,6 +155,9 @@ def evaluate(net, fp_v, test_loader, device = "cuda:0"):
             
     print("similarity of homologous models:",sim_homo/cnt_homo)
     print("similarity of independent models:",sim_indep/cnt_indep)
+    if cnt_homo > 0 and cnt_indep > 0:
+        return float(sim_homo/cnt_homo), float(sim_indep/cnt_indep)
+    return None
     
 # def evaluate(net, fp_v, test_loader, device="cuda:0"):
 #     net.to(device)  # 将网络移动到指定设备

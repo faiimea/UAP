@@ -1,0 +1,2 @@
+pdfplumber>=0.11,<0.12
+pydantic>=2.8,<3

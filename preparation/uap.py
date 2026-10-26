@@ -18,6 +18,8 @@ from utils import get_subtraining_dataloader_cifar10,get_test_dataloader_cifar10
 from model_structure import get_model
 import random
 
+DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
 
 def deepfool(image, net, num_classes = 10, overshoot = 0.02, max_iter = 50):
     """
@@ -73,7 +75,7 @@ def deepfool(image, net, num_classes = 10, overshoot = 0.02, max_iter = 50):
         # compute r_i and r_tot
         r_i = (pert + 1e-4) * w / np.linalg.norm(w) # 这一次迭代的r
         r_tot = np.float32(r_tot + r_i) #r_total
-        pert_image = image + (1+overshoot) * torch.from_numpy(r_tot).cuda()
+        pert_image = image + (1+overshoot) * torch.from_numpy(r_tot).to(image.device)
 
         x = Variable(pert_image, requires_grad = True) # 将添加干扰后的图片输入net里面
         fs = net(x)
@@ -107,8 +109,8 @@ def compute_fooling_rate(net, testloader, v):
     n = len(testloader.dataset)
     with torch.no_grad():
         for img_batch, _ in testloader:
-            img_batch = img_batch.cuda()
-            per_img_batch = (img_batch + torch.tensor(v).cuda()).cuda()
+            img_batch = img_batch.to(DEVICE)
+            per_img_batch = (img_batch + torch.tensor(v).to(DEVICE)).to(DEVICE)
             est_labels_orig = torch.argmax(net(img_batch), dim=1)
             est_labels_pert = torch.argmax(net(per_img_batch), dim=1)
             fooling = torch.sum(est_labels_pert != est_labels_orig).float() 
@@ -124,7 +126,8 @@ def universal_perturbation(dataset,
                            p=np.inf,
                            num_classes=10,
                            overshoot=0.02,
-                           max_iter_df=50):
+                           max_iter_df=50,
+                           max_rounds=np.inf):
     """
     :param dataset: Images of size MxHxWxC (M: number of images)
     :param f: feedforward function (input: images, output: values of activation BEFORE softmax).
@@ -138,9 +141,11 @@ def universal_perturbation(dataset,
     :param max_iter_df: maximum number of iterations for deepfool (default = 10)
     :return: the universal perturbation.
     """
-    torch.cuda.set_device(1)
+    if torch.cuda.is_available():
+        torch.cuda.set_device(0)
     print('p =', p)
     v = 0
+    v_opt = 0
     fooling_rate = 0.0
     best_fooling = 0.0
     num_images = len(val_loader.dataset)   # The length of testing data
@@ -148,7 +153,7 @@ def universal_perturbation(dataset,
     foo_rates = []
     att_rates = []
 
-    while fooling_rate < 1-delta:
+    while fooling_rate < 1-delta and round < max_rounds:
 
         print("==========The round", round,"begins=============")
         # Shuffle the dataset
@@ -157,13 +162,13 @@ def universal_perturbation(dataset,
         # Go through the data set and compute the perturbation increments sequentially
         k = 0
         cnt = 0
-        f.cuda()
+        f.to(DEVICE)
         sum_iter = 0
 
         for cur_img,_ in tqdm(data_loader):
             k += 1
-            cur_img = cur_img.cuda()
-            per = Variable( torch.clamp((cur_img + torch.tensor(v).cuda()),0,1), requires_grad = True)
+            cur_img = cur_img.to(DEVICE)
+            per = Variable( torch.clamp((cur_img + torch.tensor(v).to(DEVICE)),0,1), requires_grad = True)
 
             if int(f(cur_img).argmax()) == int(f(per).argmax()):
                 cnt += 1
@@ -182,7 +187,8 @@ def universal_perturbation(dataset,
                     v = proj_lp(v, xi, p)
         att_rates.append(1-cnt/len(dataset))
         print(" The attack rate on training dataset is:", 1 - cnt/len(dataset))
-        print("The average iter is:", sum_iter / cnt)
+        if cnt > 0:
+            print("The average iter is:", sum_iter / cnt)
         print("V is:", abs(v).max())
         # Perturb the dataset with computed perturbation
         # dataset_perturbed = dataset + v

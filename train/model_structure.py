@@ -44,6 +44,9 @@ def get_model(netname, gpu, num_classes=10):
     elif netname == 'resnet18':
         from models.resnet import ResNet18
         net = ResNet18()
+    elif netname == 'resnet20':
+        from models.resnet_cifar import resnet20
+        net = resnet20(num_classes=num_classes)
     elif netname == 'resnet34':
         from models.resnet import ResNet34
         net = ResNet34()
