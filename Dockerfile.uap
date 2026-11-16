@@ -1,0 +1,22 @@
+# PyTorch 2.7.1/CUDA 12.8 includes Blackwell (sm_120) support required by
+# RTX 5080-class GPUs. The previous 2.2/CUDA 12.1 image could see the GPU but
+# could not execute CUDA kernels on it.
+FROM pytorch/pytorch:2.7.1-cuda12.8-cudnn9-runtime
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace/uap
+COPY . /workspace/uap
+
+# Do not install the legacy requirements.txt here: it contains conflicting
+# duplicate pins for Pillow/scikit-learn and pins torchvision for another
+# torch release. The base image already supplies the CUDA-enabled torch stack.
+RUN python -m pip install --no-cache-dir \
+    "numpy<2" scipy scikit-learn pillow tqdm tensorboard \
+    langchain-core pypdf PyYAML reportlab pytest
+
+CMD ["bash"]

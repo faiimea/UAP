@@ -1,0 +1,33 @@
+name: UAP-tool-smoke
+repo: https://github.com/adarsh-siva/UAP
+dockerfile: ../../Dockerfile.uap
+context: ../..
+image: repro-uap:latest
+notes: >-
+  Fast plumbing test for the Docker reproduction tools. It intentionally emits
+  UAP-shaped metric lines without running the scientific experiment. Use
+  papers/uap/spec.yaml for the actual UAP reproduction.
+run:
+  command: >-
+    python -c "print('ROC AUC (view level, smoke): 1.0000'); print('ROC AUC (model level, smoke): 1.0000'); print('piracy_0: detection confidence with 20 fingerprints = 99.999000%')"
+  workdir: /workspace/uap
+  gpu: false
+  timeout_minutes: 10
+  volumes:
+    ../..: /workspace/uap
+metrics:
+  view_auc:
+    pattern: 'ROC AUC \(view level,.*\):\s*([0-9.]+)'
+    recorded: 1.0
+    tolerance: 0.05
+    source: UAP smoke metric format
+  model_auc:
+    pattern: 'ROC AUC \(model level,.*\):\s*([0-9.]+)'
+    recorded: 1.0
+    tolerance: 0.05
+    source: UAP smoke metric format
+  piracy_detection_confidence:
+    pattern: 'piracy_[0-9]+: detection confidence with 20 fingerprints =\s*([0-9.]+)%'
+    recorded: 99.99
+    tolerance: 0.01
+    source: UAP smoke metric format

@@ -1,0 +1,36 @@
+name: UAP-Gilbreth-from-scratch
+repo: https://github.com/adarsh-siva/UAP
+notes: >-
+  LangChain-controlled Gilbreth reproduction. The agent must run on Gilbreth
+  (or on a host with Slurm access). The sbatch script trains the 21-model zoo,
+  runs the full UAP pipeline, and writes demo/metrics_<jobid>.txt.
+run:
+  backend: slurm
+  command: demo/gilbreth_train_for_docker.sbatch
+  slurm_script: ../../demo/gilbreth_train_for_docker.sbatch
+  slurm_account: zghodsi
+  slurm_partition: a100-80gb
+  slurm_qos: normal
+  slurm_time: 1-00:00:00
+  slurm_metrics_file: ../../demo/metrics_{job_id}.txt
+  timeout_minutes: 2880
+  gpu: true
+metrics:
+  view_auc:
+    pattern: 'ROC AUC \(view level,.*\):\s*([0-9.]+)'
+    recorded: 1.0
+    tolerance: 0.05
+    source: CVPR 2022 paper, reported view-level ROC AUC
+    occurrence: last
+  model_auc:
+    pattern: 'ROC AUC \(model level,.*\):\s*([0-9.]+)'
+    recorded: 1.0
+    tolerance: 0.05
+    source: CVPR 2022 paper, reported model-level ROC AUC
+    occurrence: last
+  piracy_detection_confidence:
+    pattern: 'piracy_[0-9]+: detection confidence with 20 fingerprints =\s*([0-9.]+)%'
+    recorded: 99.99
+    tolerance: 0.01
+    source: CVPR 2022 paper, reported detection confidence (>99.99%)
+    occurrence: last
