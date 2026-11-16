@@ -12,6 +12,8 @@ from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 from torch.utils.data import TensorDataset
 
+DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
 
 def concanate_fingerprint(net, data_sets, pert, label, b_z = 32, nb_class = 10):
     """
@@ -58,9 +60,10 @@ def concanate_fingerprint(net, data_sets, pert, label, b_z = 32, nb_class = 10):
             end = min(batch_size * (i+1), n)
             #print(start,end)
             net.eval()
+            net.to(DEVICE)
             with torch.no_grad():
-                inputs, labels = inputs.cuda(), labels.cuda()
-                per_inputs = (inputs + torch.tensor(pert).cuda()).cuda()
+                inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
+                per_inputs = (inputs + pert.clone().detach().to(DEVICE)).to(DEVICE)
                 outputs = softmax(net(inputs).cpu())
                 #print(outputs.shape)
                 pert_outputs = softmax(net(per_inputs).cpu())
