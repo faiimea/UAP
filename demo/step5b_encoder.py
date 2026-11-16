@@ -28,11 +28,14 @@ def load(name):
 
 def make_set(piracy_names, indep_names):
     xs = [load('victim')]
-    ys = [torch.zeros(len(xs[0]))]
+    # Victim and piracy are the same contrastive class in the repository's
+    # original main.py.  The reduced demo previously separated them, which
+    # trained the encoder against the desired objective.
+    ys = [torch.ones(len(xs[0]))]
     for n in piracy_names:
         x = load(n); xs.append(x); ys.append(torch.ones(len(x)))
     for n in indep_names:
-        x = load(n); xs.append(x); ys.append(torch.full((len(x),), 2.0))
+        x = load(n); xs.append(x); ys.append(torch.zeros(len(x)))
     return torch.utils.data.TensorDataset(torch.cat(xs), torch.cat(ys).long())
 
 

@@ -53,6 +53,25 @@ def image_exists(tag: str) -> bool:
     return rc == 0
 
 
+def cuda_usable(image: str) -> tuple[bool, str]:
+    """Check that the exact image can execute a CUDA operation on this host."""
+    try:
+        rc, out = _run(
+            [
+                docker_bin(), "run", "--rm", "--gpus", "all", image,
+                "python", "-c",
+                "import torch; assert torch.cuda.is_available(); "
+                "x=torch.randn(64,64,device='cuda'); y=x@x; "
+                "torch.cuda.synchronize(); "
+                "print(torch.cuda.get_device_name(0)); print('CUDA PROBE OK')",
+            ],
+            120,
+        )
+    except DockerError as exc:
+        return False, str(exc)
+    return rc == 0 and "CUDA PROBE OK" in out, out[-4000:]
+
+
 def run(container: str, command: str, *, log_path: str, outputs_dir: str, gpu: bool = True,
         env: Optional[dict] = None, volumes: Optional[dict] = None, workdir: str = "",
         shm_size: str = "8g", timeout: Optional[float] = None) -> tuple:

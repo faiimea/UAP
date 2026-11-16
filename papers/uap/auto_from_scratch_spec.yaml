@@ -1,0 +1,65 @@
+name: UAP-paper-faithful-CIFAR10
+repo: https://github.com/faiimea/UAP
+dockerfile: ../../Dockerfile.uap
+context: ../..
+image: repro-uap:latest
+notes: >-
+  Automatic executor selection for the paper-faithful CIFAR-10 reproduction.
+  This is not the reduced 21-model demo. The command trains 81 models,
+  generates the UAP, creates 100-point/200-view fingerprints, trains the
+  adversarial soft-label extraction, the supervised-contrastive encoder with
+  the paper's five-plus-five model split,
+  and calculates all held-out metrics.
+run:
+  backend: auto
+  command: >-
+    python demo/paper_full_cifar10.py
+  slurm_script: ../../demo/gilbreth_paper_full.sbatch
+  slurm_account: zghodsi
+  slurm_partition: a100-80gb
+  slurm_qos: normal
+  slurm_time: 7-00:00:00
+  slurm_metrics_file: ../../result/paper_full_cifar10/metrics_{job_id}.log
+  workdir: /workspace/uap
+  gpu: true
+  shm_size: 16g
+  timeout_minutes: 10080
+  volumes:
+    ../..: /workspace/uap
+metrics:
+  view_auc:
+    pattern: 'ROC AUC \(view level,.*\):\s*([0-9.]+)'
+    recorded: 1.0
+    tolerance: 0.05
+    source: CVPR 2022 paper, CIFAR-10 comparison AUC
+    occurrence: last
+  model_auc:
+    pattern: 'ROC AUC \(model level,.*\):\s*([0-9.]+)'
+    recorded: 1.0
+    tolerance: 0.05
+    source: CVPR 2022 paper, CIFAR-10 comparison AUC
+    occurrence: last
+  piracy_detection_confidence:
+    pattern: 'minimum piracy detection confidence with 20 fingerprints =\s*([0-9.]+)%'
+    recorded: 99.99
+    tolerance: 0.01
+    source: CVPR 2022 paper, confidence above 99.99% using 20 fingerprints
+    occurrence: last
+  uap_fooling_rate:
+    pattern: 'UAP_FINAL_FOOLING_RATE:\s*([0-9.]+)'
+    recorded: 0.80
+    tolerance: 0.05
+    source: CVPR 2022 paper, UAP attack success above 80%
+    occurrence: last
+  uap_target_met:
+    pattern: 'UAP_TARGET_MET:\s*([0-9.]+)'
+    recorded: 1
+    tolerance: 0.0
+    source: "paper protocol assertion: target fooling rate was reached"
+    occurrence: last
+  model_count:
+    pattern: 'MODEL_COUNT:\s*([0-9.]+)'
+    recorded: 81
+    tolerance: 0.0
+    source: CVPR 2022 paper, 81-model CIFAR-10 baseline
+    occurrence: last

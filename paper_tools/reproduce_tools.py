@@ -10,7 +10,7 @@ import time
 
 from langchain_core.tools import tool
 
-from . import docker_ops
+from . import docker_ops, slurm_ops
 from .extract import extract_value
 from .state import ReproState
 
@@ -26,9 +26,27 @@ def _dump(obj) -> str:
 
 
 def do_reproduce_metric(state: ReproState, metric: str, container: str = "") -> dict:
+    with state._operation_lock:
+        return _do_reproduce_metric(state, metric, container)
+
+
+def _do_reproduce_metric(state: ReproState, metric: str, container: str = "") -> dict:
     spec = state.spec
     if metric not in spec.metrics:
         return {"status": "ERROR", "message": f"unknown metric '{metric}'", "available": list(spec.metrics)}
+    backend = spec.backend
+    backend_info = None
+    if backend == "auto":
+        backend, backend_info = _select_backend(state)
+        if backend_info is not None:
+            state.data["execution_backend"] = backend_info
+            state.save()
+        if backend == "error":
+            return {"status": "ERROR", **(backend_info or {"message": "could not select an execution backend"})}
+    if backend == "slurm":
+        return _do_slurm_reproduce_metric(state, metric)
+    if backend != "docker":
+        return {"status": "ERROR", "message": f"unsupported execution backend '{backend}'"}
     m = spec.metrics[metric]
     container = container or spec.image_tag()
     command = m.command or spec.run_command
@@ -74,6 +92,112 @@ def do_reproduce_metric(state: ReproState, metric: str, container: str = "") -> 
                                                   "log": log_path, "at": time.strftime("%Y-%m-%d %H:%M:%S")}
     state.save()
     return {"status": "OK", "metric": metric, "value": value, "reused_previous_run": reused, "log": log_path}
+
+
+def _select_backend(state: ReproState) -> tuple[str, dict]:
+    """Select local Docker only after a real CUDA probe; otherwise use Slurm."""
+    spec = state.spec
+    previous = state.data.get("execution_backend")
+    if previous and previous.get("spec_path") == spec.path:
+        return previous.get("backend", "slurm"), previous
+
+    image = spec.image_tag()
+    if not docker_ops.image_exists(image):
+        return "slurm", {
+            "spec_path": spec.path,
+            "backend": "slurm",
+            "reason": f"local Docker image '{image}' is not available",
+        }
+    if not spec.gpu:
+        return "docker", {
+            "spec_path": spec.path,
+            "backend": "docker",
+            "reason": "spec does not require a GPU",
+        }
+
+    usable, probe = docker_ops.cuda_usable(image)
+    if usable:
+        return "docker", {
+            "spec_path": spec.path,
+            "backend": "docker",
+            "reason": "local Docker CUDA probe succeeded",
+            "probe": probe,
+        }
+    return "slurm", {
+        "spec_path": spec.path,
+        "backend": "slurm",
+        "reason": "local Docker CUDA probe failed",
+        "probe": probe,
+    }
+
+
+def _do_slurm_reproduce_metric(state: ReproState, metric: str) -> dict:
+    """Run one Slurm-backed experiment and extract a metric from its output."""
+    spec = state.spec
+    m = spec.metrics[metric]
+    command = "|".join([
+        "slurm",
+        spec.slurm_script,
+        spec.slurm_account,
+        spec.slurm_partition,
+        spec.slurm_qos,
+        spec.slurm_time,
+    ])
+    cached = state.cached_run("slurm", command)
+    if cached:
+        log_path, reused = cached["log"], True
+        with open(log_path, errors="replace") as f:
+            source_text = f.read()
+        job_id = ""
+    else:
+        reused = False
+        log_path = os.path.join(
+            state.paper_dir("logs"),
+            f"slurm-run-{state.run_key('slurm', command)}.log",
+        )
+        t0 = time.time()
+        try:
+            result = slurm_ops.run(spec, state)
+        except slurm_ops.SlurmError as e:
+            return {"status": "ERROR", "message": str(e)}
+        source_text = result["output"]
+        job_id = result["job_id"]
+        with open(log_path, "w") as f:
+            f.write(source_text)
+            if result.get("job_log"):
+                f.write(f"\n[slurm job log] {result['job_log']}\n")
+        state.record_run("slurm", command, log_path, result["returncode"], time.time() - t0)
+        if result["returncode"] != 0:
+            return {
+                "status": "RUN_FAILED",
+                "job_id": job_id,
+                "state": result["state"],
+                "log": log_path,
+                "log_tail": _tail(source_text),
+            }
+
+    value = extract_value(source_text, m)
+    if value is None:
+        return {
+            "status": "NOT_FOUND",
+            "message": f"pattern {m.pattern!r} (after={m.after!r}) matched nothing",
+            "log": log_path,
+            "log_tail": _tail(source_text),
+        }
+    state.data["reproduced"][state.key(metric)] = {
+        "value": value,
+        "container": f"slurm:{job_id}" if job_id else "slurm:cached",
+        "command": command,
+        "at": time.strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    state.save()
+    return {
+        "status": "OK",
+        "metric": metric,
+        "value": value,
+        "reused_previous_run": reused,
+        "log": log_path,
+    }
 
 
 def make_tools(state: ReproState) -> list:

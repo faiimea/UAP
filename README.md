@@ -4,7 +4,14 @@ This repo is implementation of CVPR 2022 paper ["Fingerprinting Deep Neural Netw
 
 ## About this fork
 
-This fork makes the pipeline runnable end to end on a single GPU. It fixes several bugs in the original code (NaN in the similarity evaluation, an exit-less UAP loop, an overlapping data split, hardcoded CUDA devices and author-machine paths), stabilizes the encoder's contrastive training (best-validation-epoch selection — it collapses late at full scale otherwise), adds a CIFAR-style **ResNet20** to the model zoo, and adds a runnable driver pipeline under `demo/`. Full details in [SETUP_AND_RESULTS.md](SETUP_AND_RESULTS.md).
+This fork contains two explicitly separate paths. The legacy `demo/step*.py`
+path is a reduced single-architecture smoke/research demo. The
+`demo/paper_full_cifar10.py` path is the paper-faithful CIFAR-10 baseline used
+by the LangChain agent: one ResNet18 victim, 10 adversarially extracted piracy
+models and 10 homologous models for each of ResNet34, VGG16, DenseNet121 and
+GoogLeNet (81 models in total), the UAP, 100-point/200-view fingerprints,
+encoder training, metrics, and validation. Full details in
+[SETUP_AND_RESULTS.md](SETUP_AND_RESULTS.md).
 
 ### Quick start
 
@@ -13,14 +20,24 @@ This fork makes the pipeline runnable end to end on a single GPU. It fixes sever
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128  # CUDA build for your GPU
 pip install numpy scikit-learn scipy tqdm pillow
 
-bash demo/run_full_local.sh   # full pipeline: ResNet20 victim, paper-scale settings
+bash demo/run_full_local.sh   # legacy reduced pipeline
+
+# paper-faithful pipeline through the reproduction tools
+python -m paper_tools.langchain_agent \
+  --spec papers/uap/paper_faithful_from_scratch_spec.yaml \
+  --workspace inspection-results/paper-faithful-run \
+  --prompt "Run the complete paper-faithful UAP reproduction, then reproduce and validate every metric."
 ```
 
 Individual steps (`demo/step1..6`) default to a small ResNet18 demo; scale and architecture are set via `UAP_*` environment variables (see `demo/run_full_local.sh`).
 
-### Reproduction results
+### Legacy reduced-demo results
 
-Full-scale run (ResNet20 victim @ 88.9% CIFAR-10 accuracy, 100 epochs; 10 fine-tuned piracy models, 84.8–87.5%; 10 independent models trained from scratch, 88.1–89.2%; UAP fooling rate 79%; 150 points × 200 views fingerprints; verdicts on 5 piracy + 5 independent models held out of encoder training). Single RTX 5070 Ti Laptop GPU, ~1.5 h total.
+The numbers below are from the legacy reduced demo, not from the
+paper-faithful 81-model path. They are useful as a quick sanity check only.
+The paper-faithful run writes its own metrics and manifest under
+`result/paper_full_cifar10/` and must be run before claiming a paper-level
+reproduction.
 
 | Metric | This fork (ResNet20) | Paper (CIFAR-10) |
 |---|---|---|

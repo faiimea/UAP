@@ -1,0 +1,48 @@
+name: UAP
+repo: https://github.com/adarsh-siva/UAP
+dockerfile: ../../Dockerfile.uap
+context: ../..
+image: repro-uap:latest
+notes: >-
+  This run intentionally reuses the trained model zoo in demo/checkpoint.
+  It requires victim.pth, piracy_0.pth through piracy_9.pth, and
+  indep_0.pth through indep_9.pth. The full paper-scale run is GPU-bound.
+run:
+  command: >-
+    test -f demo/checkpoint/victim.pth &&
+    for name in $(seq -f 'piracy_%g' 0 9) $(seq -f 'indep_%g' 0 9); do
+      test -f demo/checkpoint/$name.pth;
+    done &&
+    if [ ! -f data/CIFAR10_sub_train_split.pkl ]; then python demo/step1_split.py; fi &&
+    python demo/step3_uap.py &&
+    python demo/step4_fingerprint.py &&
+    for name in victim $(seq -f 'piracy_%g' 0 9) $(seq -f 'indep_%g' 0 9); do
+      python demo/step5a_features.py "$name";
+    done &&
+    python demo/step5b_encoder.py &&
+    python demo/step6_metrics.py
+  workdir: /workspace/uap
+  gpu: true
+  shm_size: 8g
+  timeout_minutes: 2880
+  volumes:
+    ../..: /workspace/uap
+metrics:
+  view_auc:
+    pattern: 'ROC AUC \(view level,.*\):\s*([0-9.]+)'
+    recorded: 1.0
+    tolerance: 0.05
+    source: CVPR 2022 paper, reported view-level ROC AUC
+    occurrence: last
+  model_auc:
+    pattern: 'ROC AUC \(model level,.*\):\s*([0-9.]+)'
+    recorded: 1.0
+    tolerance: 0.05
+    source: CVPR 2022 paper, reported model-level ROC AUC
+    occurrence: last
+  piracy_detection_confidence:
+    pattern: 'piracy_[0-9]+: detection confidence with 20 fingerprints =\s*([0-9.]+)%'
+    recorded: 99.99
+    tolerance: 0.01
+    source: CVPR 2022 paper, reported detection confidence (>99.99%)
+    occurrence: last

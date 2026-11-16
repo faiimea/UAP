@@ -44,6 +44,17 @@ The repo is research code, hardcoded to the authors' server. Changes made:
 
 ## 3. Running the pipeline
 
+The commands below document the legacy reduced demo and are retained for
+quick debugging. They are not the paper-faithful reproduction. The LangChain
+paper path is now `demo/paper_full_cifar10.py`, configured by
+`papers/uap/paper_faithful_from_scratch_spec.yaml`. It trains 81 models (one
+ResNet18 victim plus 10 piracy and 10 homologous models for each of ResNet34,
+VGG16, DenseNet121 and GoogLeNet), uses a 0.17-delta UAP, 100 points x 200
+views, five-plus-five encoder training models, and validates the held-out
+metrics. Piracy models are produced by batched adversarial soft-label
+extraction from the victim, rather than by fine-tuning victim checkpoints. It
+writes a protocol manifest to `result/paper_full_cifar10/`.
+
 No pre-trained checkpoints ship with the repo, so everything is trained from scratch. All commands from the repo root:
 
 ```bash

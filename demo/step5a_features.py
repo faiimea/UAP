@@ -17,12 +17,17 @@ name = sys.argv[1]
 out_dir = os.path.join(RESULT_DIR, 'fps')
 os.makedirs(out_dir, exist_ok=True)
 out = os.path.join(out_dir, name + '.npy')
+force_rebuild = os.environ.get('UAP_FORCE_REBUILD', '0') == '1'
+if force_rebuild and os.path.exists(out):
+    os.remove(out)
 if os.path.exists(out):
     print(f'{out} exists, skipping', flush=True)
     sys.exit(0)
 
 # one-time: pickle -> plain npy so later runs can memory-map it
 points_npy = os.path.join(RESULT_DIR, 'fp_points.npy')
+if force_rebuild and os.path.exists(points_npy):
+    os.remove(points_npy)
 if not os.path.exists(points_npy):
     with open(os.path.join(RESULT_DIR, f'split_sets_{N_POINTS}points_{N_VIEWS}views.pkl'), 'rb') as f:
         ds = pickle.load(f)

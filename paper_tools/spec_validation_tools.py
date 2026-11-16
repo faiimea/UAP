@@ -16,7 +16,16 @@ def do_load_spec(state: ReproState, spec_path: str) -> dict:
     spec = state.set_spec(spec_path)
     return {
         "paper": spec.name, "repo": spec.repo, "image": spec.image_tag(),
+        "backend": spec.backend,
         "dockerfile": spec.resolve(spec.dockerfile), "run_command": spec.run_command,
+        "slurm": {
+            "script": spec.resolve(spec.slurm_script) if spec.slurm_script else "",
+            "account": spec.slurm_account,
+            "partition": spec.slurm_partition,
+            "qos": spec.slurm_qos,
+            "time": spec.slurm_time,
+            "metrics_file": spec.slurm_metrics_file,
+        } if spec.backend == "slurm" else None,
         "gpu": spec.gpu, "volumes": spec.volumes, "notes": spec.notes,
         "metrics": {n: {"recorded": m.recorded, "tolerance": f"{m.tolerance} ({m.tolerance_type})",
                         "source": m.source, "command": m.command or "(paper run command)"}
