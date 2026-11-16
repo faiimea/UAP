@@ -1,0 +1,58 @@
+name: UAP-paper-faithful-CIFAR10
+repo: https://github.com/adarsh-siva/UAP
+dockerfile: ../../Dockerfile.uap
+context: ../..
+image: repro-uap:latest
+notes: >-
+  Docker-only paper-faithful CIFAR-10 reproduction. It trains the complete
+  81-model baseline (one ResNet18 victim and 10 piracy plus 10 homologous
+  models for each of four other architectures) using adversarial soft-label
+  extraction, then runs UAP generation,
+  fingerprint selection, encoder training and metric validation.
+run:
+  backend: docker
+  command: >-
+    python demo/paper_full_cifar10.py
+  workdir: /workspace/uap
+  gpu: true
+  shm_size: 16g
+  timeout_minutes: 10080
+  volumes:
+    ../..: /workspace/uap
+metrics:
+  view_auc:
+    pattern: 'ROC AUC \(view level,.*\):\s*([0-9.]+)'
+    recorded: 1.0
+    tolerance: 0.05
+    source: CVPR 2022 paper, CIFAR-10 comparison AUC
+    occurrence: last
+  model_auc:
+    pattern: 'ROC AUC \(model level,.*\):\s*([0-9.]+)'
+    recorded: 1.0
+    tolerance: 0.05
+    source: CVPR 2022 paper, CIFAR-10 comparison AUC
+    occurrence: last
+  piracy_detection_confidence:
+    pattern: 'minimum piracy detection confidence with 20 fingerprints =\s*([0-9.]+)%'
+    recorded: 99.99
+    tolerance: 0.01
+    source: CVPR 2022 paper, confidence above 99.99% using 20 fingerprints
+    occurrence: last
+  uap_fooling_rate:
+    pattern: 'UAP_FINAL_FOOLING_RATE:\s*([0-9.]+)'
+    recorded: 0.80
+    tolerance: 0.05
+    source: CVPR 2022 paper, UAP attack success above 80%
+    occurrence: last
+  uap_target_met:
+    pattern: 'UAP_TARGET_MET:\s*([0-9.]+)'
+    recorded: 1
+    tolerance: 0.0
+    source: "paper protocol assertion: target fooling rate was reached"
+    occurrence: last
+  model_count:
+    pattern: 'MODEL_COUNT:\s*([0-9.]+)'
+    recorded: 81
+    tolerance: 0.0
+    source: CVPR 2022 paper, 81-model CIFAR-10 baseline
+    occurrence: last

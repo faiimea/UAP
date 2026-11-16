@@ -36,6 +36,13 @@ class PaperSpec:
     dockerfile: str = "Dockerfile"
     context: str = "."
     image: str = ""
+    backend: str = "docker"              # "docker" or "slurm"
+    slurm_script: str = ""
+    slurm_account: str = ""
+    slurm_partition: str = ""
+    slurm_qos: str = ""
+    slurm_time: str = ""
+    slurm_metrics_file: str = ""
     run_command: str = ""
     workdir: str = ""
     gpu: bool = True
@@ -70,6 +77,13 @@ def load_spec(path: str) -> PaperSpec:
     spec = PaperSpec(
         name=raw.pop("name"),
         path=os.path.abspath(path),
+        backend=run.get("backend", "docker"),
+        slurm_script=run.get("slurm_script", ""),
+        slurm_account=run.get("slurm_account", ""),
+        slurm_partition=run.get("slurm_partition", ""),
+        slurm_qos=run.get("slurm_qos", ""),
+        slurm_time=run.get("slurm_time", ""),
+        slurm_metrics_file=run.get("slurm_metrics_file", ""),
         run_command=run.get("command", ""),
         workdir=run.get("workdir", ""),
         gpu=run.get("gpu", True),

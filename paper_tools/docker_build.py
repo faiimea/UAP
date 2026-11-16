@@ -1,14 +1,26 @@
 import json
 import os
-import re
+import time
 
 from langchain_core.tools import tool
 
 from . import docker_ops
 from .state import ReproState
 
-def do_docker_build(state: ReproState, dockerfile: str, tag: str = "", context: str = "") -> dict:
+LOG_TAIL = 4000
+
+
+def _tail(text: str, n: int = LOG_TAIL) -> str:
+    return text if len(text) <= n else "...[truncated]...\n" + text[-n:]
+
+
+def _dump(obj) -> str:
+    return json.dumps(obj, indent=2, default=str)
+
+def do_docker_build(state: ReproState, dockerfile: str = "", tag: str = "", context: str = "") -> dict:
     spec = state.spec if state.data.get("spec_path") else None
+    if spec and not dockerfile:
+        dockerfile = spec.dockerfile
     df = spec.resolve(dockerfile) if spec else os.path.abspath(os.path.expanduser(dockerfile))
     if not os.path.isfile(df):
         return {"status": "ERROR", "message": f"Dockerfile not found: {df}"}
@@ -32,9 +44,25 @@ def do_docker_build(state: ReproState, dockerfile: str, tag: str = "", context: 
         return {"status": "FAILED", "image": tag, "log": log, "log_tail": _tail(out)}
     return {"status": "OK", "image": tag, "seconds": round(time.time() - t0, 1), "log": log}
 
-@tool
-def docker_build(dockerfile: str, tag: str = "", context: str = "") -> str:
-    """Build a Docker image from the Dockerfile path provided. Paths are relative to the current spec's folder.
-    `tag` defaults to the spec's image tag; `context` defaults to the spec's build context.
-    Returns status OK with the image tag, or FAILED with the tail of the build log."""
-    return _dump(do_docker_build(state, dockerfile, tag, context))
+def make_tools(state: ReproState) -> list:
+    """Create docker_build bound to the shared reproduction state.
+
+    Keeping the state binding here matches reproduce_tools.py and prevents the
+    tool from depending on an undefined module-level ``state`` variable.
+    """
+    @tool
+    def docker_build(dockerfile: str = "", tag: str = "", context: str = "") -> str:
+        """Build the active paper's Docker image.
+
+        When a paper spec is active, its declared Dockerfile and context are
+        authoritative; the optional dockerfile argument is only used when no
+        spec has been loaded.
+        """
+        try:
+            if state.data.get("spec_path"):
+                dockerfile = state.spec.dockerfile
+            return _dump(do_docker_build(state, dockerfile, tag, context))
+        except Exception as e:
+            return _dump({"status": "ERROR", "message": f"{type(e).__name__}: {e}"})
+
+    return [docker_build]

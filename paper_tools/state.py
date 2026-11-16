@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import threading
 import time
 from typing import Optional
 
@@ -15,6 +16,14 @@ class ReproState:
         self.workspace = os.path.abspath(workspace)
         os.makedirs(self.workspace, exist_ok=True)
         self.path = os.path.join(self.workspace, "state.json")
+        # LangChain can execute multiple tool calls in parallel.  Keep state
+        # writes atomic within this process and use a per-thread temp path so
+        # two calls cannot both open state.json.tmp on Windows.
+        self._save_lock = threading.RLock()
+        # Reproduction commands share the run cache and may be expensive.
+        # Serialize them so parallel LangChain tool calls reuse one completed
+        # Docker run instead of launching duplicate containers.
+        self._operation_lock = threading.RLock()
         self.data = {"spec_path": None, "images": {}, "runs": {}, "reproduced": {}, "validations": {}}
         if os.path.exists(self.path):
             with open(self.path) as f:
@@ -22,10 +31,20 @@ class ReproState:
         self._spec: Optional[PaperSpec] = None
 
     def save(self):
-        tmp = self.path + ".tmp"
-        with open(tmp, "w") as f:
-            json.dump(self.data, f, indent=2)
-        os.replace(tmp, self.path)
+        with self._save_lock:
+            tmp = f"{self.path}.{os.getpid()}.{threading.get_ident()}.tmp"
+            try:
+                with open(tmp, "w") as f:
+                    json.dump(self.data, f, indent=2)
+                os.replace(tmp, self.path)
+            finally:
+                # Leave no temporary state files behind if serialization or
+                # replacement fails.
+                try:
+                    if os.path.exists(tmp):
+                        os.remove(tmp)
+                except OSError:
+                    pass
 
     # ---- active spec ----
     def set_spec(self, spec_path: str) -> PaperSpec:

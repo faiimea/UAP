@@ -3,8 +3,8 @@ def get_model(netname, gpu, num_classes=10):
     """ return given network
     """
     if netname == 'vgg16':
-        from models.vgg import vgg16_bn
-        net = vgg16_bn()
+        from models.vgg import VGG
+        net = VGG('VGG16')
     elif netname == 'vgg13':
         from models.vgg import vgg13_bn
         net = vgg13_bn(num_classes=num_classes)
@@ -15,8 +15,8 @@ def get_model(netname, gpu, num_classes=10):
         from models.vgg import vgg19_bn
         net = vgg19_bn()
     elif netname == 'densenet121':
-        from models.densenet import densenet121
-        net = densenet121(num_classes=num_classes)
+        from models.densenet import DenseNet121
+        net = DenseNet121()
     elif netname == 'densenet161':
         from models.densenet import densenet161
         net = densenet161()
@@ -27,8 +27,8 @@ def get_model(netname, gpu, num_classes=10):
         from models.densenet import densenet201
         net = densenet201()
     elif netname == 'googlenet':
-        from models.googlenet import googlenet
-        net = googlenet()
+        from models.googlenet import GoogLeNet
+        net = GoogLeNet()
     elif netname == 'inceptionv3':
         from models.inceptionv3 import inceptionv3
         net = inceptionv3()
